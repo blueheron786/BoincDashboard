@@ -129,7 +129,9 @@ namespace BoincDashboard
             _refreshTimer = new DispatcherTimer
             {
                 /////////////// takes around 0.5s to update
-                Interval = TimeSpan.FromSeconds(1),
+                // For some slow machines, 1s is too fast.
+                // Keep it slow so we get consistent results.
+                Interval = TimeSpan.FromSeconds(5),
             };
             _refreshTimer.Tick += async (s, e) => await LoadAllTasks();
             _refreshTimer.Start();
@@ -142,11 +144,23 @@ namespace BoincDashboard
             var allTasks = new List<BoincTask>();
             var errorMessages = new List<string>();
 
+            // Show loading indicator
+            Dispatcher.Invoke(() =>
+            {
+                LastUpdatedLabel.Text = "Connecting to hosts...";
+            });
+
             // Clean up stale connections before starting
             CleanupStaleConnections();
 
             foreach (var host in _hosts)
             {
+                // Update loading indicator with current host
+                Dispatcher.Invoke(() =>
+                {
+                    LastUpdatedLabel.Text = $"Connecting to {host.Name}...";
+                });
+
                 try
                 {
                     var hostTasks = await GetTasksFromHost(host);
