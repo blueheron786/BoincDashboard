@@ -1,5 +1,7 @@
 # BOINC Dashboard
 
+<img width="1484" height="867" alt="image" src="https://github.com/user-attachments/assets/bbbf72da-3b74-48c3-b4d5-e19a491d3dcc" />
+
 Looking for a sleek, modern way to see task status across multiple BOINC clients on your LAN? Look no further.
 
 # Usage
