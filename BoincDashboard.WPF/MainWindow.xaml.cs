@@ -43,6 +43,13 @@ namespace BoincDashboard
         public TimeSpan ElapsedTime { get; set; }
         public TimeSpan RemainingTime { get; set; }
         public DateTime Deadline { get; set; }
+        
+        // Computed property to show appropriate time info based on task state
+        public string TimeInfo => State == "Complete" 
+            ? $"Runtime: {ElapsedTime:hh\\:mm\\:ss}"
+            : RemainingTime.TotalSeconds > 0 
+                ? $"Remaining: {RemainingTime:hh\\:mm\\:ss}" 
+                : $"Elapsed: {ElapsedTime:hh\\:mm\\:ss}";
     }
 
     public partial class MainWindow : Window
@@ -224,6 +231,29 @@ namespace BoincDashboard
                         progressPercent = double.Parse(fractionDone) * 100;
                     }
                     
+                    // Calculate elapsed time and remaining time
+                    TimeSpan elapsedTime;
+                    TimeSpan remainingTime;
+                    
+                    if (state == "Complete")
+                    {
+                        // For completed tasks, show the total runtime
+                        var totalRuntimeSeconds = double.Parse(taskElement.Element("final_elapsed_time")?.Value ?? 
+                                                              taskElement.Element("elapsed_time")?.Value ?? "0");
+                        elapsedTime = TimeSpan.FromSeconds(totalRuntimeSeconds);
+                        remainingTime = TimeSpan.Zero; // No remaining time for completed tasks
+                    }
+                    else
+                    {
+                        // For active tasks, show elapsed and remaining time
+                        var elapsedSeconds = double.Parse(activeTask?.Element("elapsed_time")?.Value ?? 
+                                                         taskElement.Element("elapsed_time")?.Value ?? "0");
+                        var remainingSeconds = double.Parse(activeTask?.Element("estimated_cpu_time_remaining")?.Value ?? 
+                                                           taskElement.Element("estimated_cpu_time_remaining")?.Value ?? "0");
+                        elapsedTime = TimeSpan.FromSeconds(elapsedSeconds);
+                        remainingTime = TimeSpan.FromSeconds(remainingSeconds);
+                    }
+                    
                     var task = new BoincTask
                     {
                         HostName = host.Name,
@@ -231,10 +261,8 @@ namespace BoincDashboard
                         TaskName = taskElement.Element("name")?.Value ?? "",
                         State = state,
                         ProgressPercent = progressPercent,
-                        ElapsedTime = TimeSpan.FromSeconds(double.Parse(activeTask?.Element("elapsed_time")?.Value ?? 
-                                                                      taskElement.Element("elapsed_time")?.Value ?? "0")),
-                        RemainingTime = TimeSpan.FromSeconds(double.Parse(activeTask?.Element("estimated_cpu_time_remaining")?.Value ?? 
-                                                                        taskElement.Element("estimated_cpu_time_remaining")?.Value ?? "0")),
+                        ElapsedTime = elapsedTime,
+                        RemainingTime = remainingTime,
                         Deadline = UnixTimeStampToDateTime(double.Parse(taskElement.Element("report_deadline")?.Value ?? "0"))
                     };
 
