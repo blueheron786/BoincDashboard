@@ -90,89 +90,9 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <!-- ComboBox Styles -->
-        <Style x:Key="ComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="#3F3F46"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="3">
-                            <Grid>
-                                <ToggleButton x:Name="ToggleButton"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                            ClickMode="Press">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition/>
-                                            <ColumnDefinition Width="20"/>
-                                        </Grid.ColumnDefinitions>
-                                        <ContentPresenter x:Name="ContentSite"
-                                                        Grid.Column="0"
-                                                        Margin="{TemplateBinding Padding}"
-                                                        VerticalAlignment="Center"
-                                                        Content="{TemplateBinding SelectionBoxItem}"
-                                                        ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                                        ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                                        IsHitTestVisible="False"/>
-                                        <Path x:Name="Arrow"
-                                            Grid.Column="1"
-                                            Fill="White"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Data="M 0 0 L 4 4 L 8 0 Z"/>
-                                    </Grid>
-                                </ToggleButton>
-                                <TextBox x:Name="PART_EditableTextBox"
-                                       Grid.Column="0"
-                                       Margin="{TemplateBinding Padding}"
-                                       Background="Transparent"
-                                       Foreground="{TemplateBinding Foreground}"
-                                       BorderThickness="0"
-                                       IsReadOnly="{TemplateBinding IsReadOnly}"
-                                       Visibility="Hidden"/>
-                                <Popup x:Name="Popup"
-                                     IsOpen="{TemplateBinding IsDropDownOpen}"
-                                     Placement="Bottom"
-                                     PopupAnimation="Slide">
-                                    <Border x:Name="DropDownBorder"
-                                          Background="#2D2D30"
-                                          BorderBrush="#555555"
-                                          BorderThickness="1"
-                                          CornerRadius="3"
-                                          MinWidth="{TemplateBinding ActualWidth}"
-                                          MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                        <ScrollViewer>
-                                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
-                                        </ScrollViewer>
-                                    </Border>
-                                </Popup>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" Value="#0E639C"/>
-                            </Trigger>
-                            <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter Property="BorderBrush" Value="#0E639C"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="ComboBoxItemStyle" TargetType="ComboBoxItem">
+        
+        <!-- ComboBox Item Style - Temporarily Disabled
+        <Style TargetType="ComboBoxItem">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Padding" Value="8,6"/>
@@ -182,20 +102,28 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderThickness="0"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
+                            <ContentPresenter HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter Property="Background" Value="#0E639C"/>
+                                <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter Property="Background" Value="#1177BB"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2C5282"/>
+                                <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+        -->
 
         <!-- DataGrid Styles -->
         <Style x:Key="DataGridStyle" TargetType="DataGrid">
@@ -298,27 +226,12 @@
                              IsChecked="True"
                              Style="{StaticResource ToggleButtonStyle}"
                              Click="AutoRefreshToggle_Click"/>
-                <TextBlock Text="Filter:" 
+                <!-- Filters temporarily disabled -->
+                <TextBlock Text="Filters: All Hosts | All Status" 
                           VerticalAlignment="Center" 
                           Foreground="#CCCCCC" 
-                          Margin="20,0,5,0"/>
-                <ComboBox x:Name="HostFilterCombo" 
-                         Width="150" 
-                         Style="{StaticResource ComboBoxStyle}"
-                         SelectionChanged="HostFilterCombo_SelectionChanged">
-                    <ComboBoxItem Content="All Hosts" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
-                </ComboBox>
-                <ComboBox x:Name="StatusFilterCombo" 
-                         Width="120" 
-                         Margin="5,0"
-                         Style="{StaticResource ComboBoxStyle}"
-                         SelectionChanged="StatusFilterCombo_SelectionChanged">
-                    <ComboBoxItem Content="All Status" IsSelected="True" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="Computing" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="Downloading" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="Uploading" Style="{StaticResource ComboBoxItemStyle}"/>
-                    <ComboBoxItem Content="Ready to Run" Style="{StaticResource ComboBoxItemStyle}"/>
-                </ComboBox>
+                          Margin="20,0,5,0"
+                          FontStyle="Italic"/>
             </StackPanel>
         </Border>
 
@@ -340,9 +253,8 @@
                     <DataGridTextColumn Header="Status" 
                                       Binding="{Binding State}" 
                                       Width="100"/>
-                    
-                    <!-- Progress Column with Custom Template -->
-                    <DataGridTemplateColumn Header="Progress" Width="120">
+                    <!-- Progress Column with Custom Template and SortMemberPath -->
+                    <DataGridTemplateColumn Header="Progress" Width="120" SortMemberPath="ProgressPercent">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Grid>
@@ -359,13 +271,14 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    
                     <DataGridTextColumn Header="Elapsed" 
                                       Binding="{Binding ElapsedTime, StringFormat='{}{0:hh\\:mm\\:ss}'}" 
-                                      Width="80"/>
+                                      Width="80" 
+                                      SortMemberPath="ElapsedTime"/>
                     <DataGridTextColumn Header="Remaining" 
                                       Binding="{Binding RemainingTime, StringFormat='{}{0:hh\\:mm\\:ss}'}" 
-                                      Width="80"/>
+                                      Width="80" 
+                                      SortMemberPath="RemainingTime"/>
                     <DataGridTextColumn Header="Deadline" 
                                       Binding="{Binding Deadline, StringFormat='{}{0:MMM dd HH:mm}'}" 
                                       Width="100"/>

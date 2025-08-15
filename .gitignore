@@ -1,2 +1,5 @@
 [Bb]in/
 [Oo]bj/
+
+# Secrets
+hosts.json
