@@ -253,7 +253,6 @@ namespace BoincDashboard
                     if (existingConnection.IsConnected)
                     {
                         existingConnection.LastUsed = DateTime.Now;
-                        Console.WriteLine($"Reusing connection to {host.Name}");
                         return existingConnection;
                     }
                     else
