@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.IO;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -98,6 +94,8 @@ namespace BoincDashboard
 
         private async Task LoadAllTasks()
         {
+            var stopwatch = new System.Diagnostics.Stopwatch();
+            stopwatch.Start();
             var allTasks = new List<BoincTask>();
             var errorMessages = new List<string>();
 
@@ -137,13 +135,15 @@ namespace BoincDashboard
                 {
                     // Show detailed errors if no tasks found
                     MessageBox.Show(
-                        string.Join("\n", errorMessages), 
-                        "Connection Errors", 
-                        MessageBoxButton.OK, 
+                        string.Join("\n", errorMessages),
+                        "Connection Errors",
+                        MessageBoxButton.OK,
                         MessageBoxImage.Warning);
                 }
                 LastUpdatedLabel.Text = statusText;
             });
+            stopwatch.Stop();
+            Console.WriteLine($"Total refresh time: {stopwatch.ElapsedMilliseconds} ms");
         }
 
         private async Task<List<BoincTask>> GetTasksFromHost(BoincHost host)
