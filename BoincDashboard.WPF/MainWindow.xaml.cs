@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -224,9 +225,22 @@ namespace BoincDashboard
                 ActiveHostsLabel.Text = $"Active Hosts: {activeHostsCount}/{_hosts.Count}";
                 
                 var statusText = $"Last Updated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+                
+                // Update unavailable hosts in dedicated bottom label
                 if (errorMessages.Count > 0)
                 {
-                    statusText += $" | Errors: {errorMessages.Count} host(s) unreachable";
+                    var unavailableHosts = errorMessages.Select(err => 
+                    {
+                        // Extract host name from error message
+                        var match = Regex.Match(err, @"Error connecting to ([^(]+)");
+                        return match.Success ? match.Groups[1].Value.Trim() : "Unknown";
+                    }).ToList();
+                    
+                    UnavailableHostsLabel.Text = $"Unavailable hosts: {string.Join(", ", unavailableHosts)}";
+                }
+                else
+                {
+                    UnavailableHostsLabel.Text = "";
                 }
                 if (allTasks.Count == 0 && errorMessages.Count > 0)
                 {
@@ -309,8 +323,22 @@ namespace BoincDashboard
                                                          taskElement.Element("elapsed_time")?.Value ?? "0");
                         var remainingSeconds = double.Parse(activeTask?.Element("estimated_cpu_time_remaining")?.Value ?? 
                                                            taskElement.Element("estimated_cpu_time_remaining")?.Value ?? "0");
+                        
                         elapsedTime = TimeSpan.FromSeconds(elapsedSeconds);
-                        remainingTime = TimeSpan.FromSeconds(remainingSeconds);
+                        
+                        // If task is >= 10% complete, calculate remaining time based on progress instead of BOINC estimate
+                        if (progressPercent >= 10.0 && progressPercent < 100.0 && elapsedSeconds > 0)
+                        {
+                            // Calculate: remaining = (100/percent_complete * elapsed_time) - elapsed_time
+                            var totalEstimatedSeconds = (100.0 / progressPercent) * elapsedSeconds;
+                            var calculatedRemainingSeconds = totalEstimatedSeconds - elapsedSeconds;
+                            remainingTime = TimeSpan.FromSeconds(Math.Max(0, calculatedRemainingSeconds));
+                        }
+                        else
+                        {
+                            // Use BOINC's estimate for tasks < 10% complete or when no elapsed time
+                            remainingTime = TimeSpan.FromSeconds(remainingSeconds);
+                        }
                     }
                     
                     var task = new BoincTask

@@ -305,7 +305,7 @@
                               Foreground="LightGreen" 
                               FontWeight="Bold" 
                               VerticalAlignment="Center"/>
-                    <TextBlock x:Name="ErrorMessageLabel" 
+                    <TextBlock x:Name="UnavailableHostsLabel" 
                               Text="" 
                               Foreground="#FFB3B3" 
                               Margin="20,0,0,0" 
