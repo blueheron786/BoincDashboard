@@ -78,6 +78,11 @@ namespace BoincDashboard
         
         // Sort state preservation
         private bool _isFirstLoad = true;
+        
+        // Filter state
+        private List<BoincTask> _allTasks = new();
+        private string _selectedHost = "All Hosts";
+        private string _selectedStatus = "All Status";
 
         public MainWindow()
         {
@@ -91,7 +96,81 @@ namespace BoincDashboard
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            InitializeFilters();
             await LoadAllTasks();
+        }
+
+        private void InitializeFilters()
+        {
+            // Initialize host filter
+            HostFilterComboBox.Items.Add("All Hosts");
+            foreach (var host in _hosts)
+            {
+                HostFilterComboBox.Items.Add(host.Name);
+            }
+            HostFilterComboBox.SelectedIndex = 0;
+
+            // Initialize status filter
+            StatusFilterComboBox.Items.Add("All Status");
+            StatusFilterComboBox.Items.Add("Running");
+            StatusFilterComboBox.Items.Add("Complete");
+            StatusFilterComboBox.Items.Add("Paused");
+            StatusFilterComboBox.Items.Add("Error");
+            StatusFilterComboBox.SelectedIndex = 0;
+        }
+
+        private void HostFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (HostFilterComboBox.SelectedItem != null)
+            {
+                _selectedHost = HostFilterComboBox.SelectedItem.ToString();
+                ApplyFilters();
+            }
+        }
+
+        private void StatusFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (StatusFilterComboBox.SelectedItem != null)
+            {
+                _selectedStatus = StatusFilterComboBox.SelectedItem.ToString();
+                ApplyFilters();
+            }
+        }
+
+        private void ApplyFilters()
+        {
+            if (_allTasks == null || _allTasks.Count == 0) return;
+
+            var filteredTasks = _allTasks.AsEnumerable();
+
+            // Apply host filter
+            if (_selectedHost != "All Hosts")
+            {
+                filteredTasks = filteredTasks.Where(t => t.HostName == _selectedHost);
+            }
+
+            // Apply status filter
+            if (_selectedStatus != "All Status")
+            {
+                filteredTasks = filteredTasks.Where(t => t.State == _selectedStatus);
+            }
+
+            // Update DataGrid with filtered results
+            var filteredList = filteredTasks.ToList();
+            TasksDataGrid.ItemsSource = filteredList;
+
+            // Update task count
+            var runningTasksCount = filteredList.Count(t => t.State == "Running");
+            var totalTasksCount = _allTasks.Count;
+            
+            if (_selectedHost == "All Hosts" && _selectedStatus == "All Status")
+            {
+                TotalTasksLabel.Text = $"Total Tasks: {totalTasksCount} ({runningTasksCount} running)";
+            }
+            else
+            {
+                TotalTasksLabel.Text = $"Filtered Tasks: {filteredList.Count} of {totalTasksCount} ({runningTasksCount} running)";
+            }
         }
 
         private void InitializeHosts()
@@ -183,7 +262,11 @@ namespace BoincDashboard
                 var currentSortColumn = TasksDataGrid.Columns.FirstOrDefault(c => c.SortDirection.HasValue);
                 var currentSortDirection = currentSortColumn?.SortDirection;
                 
-                TasksDataGrid.ItemsSource = allTasks;
+                // Store all tasks for filtering
+                _allTasks = allTasks;
+                
+                // Apply current filters
+                ApplyFilters();
                 
                 // Restore sort state by updating DataGrid columns directly
                 if (_isFirstLoad)

@@ -13,14 +13,14 @@
     <Window.Resources>
         <!-- Styles -->
         <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontSize" Value="22"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="#F1F1F1"/>
             <Setter Property="Margin" Value="10,5"/>
         </Style>
         
         <Style x:Key="StatusTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Foreground" Value="#CCCCCC"/>
             <Setter Property="Margin" Value="10,2"/>
         </Style>
@@ -32,6 +32,7 @@
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="Margin" Value="5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -140,13 +141,14 @@
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="IsReadOnly" Value="True"/>
             <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="14"/>
         </Style>
 
         <Style x:Key="DataGridHeaderStyle" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#007ACC"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
             <Setter Property="BorderBrush" Value="#0E639C"/>
@@ -226,12 +228,41 @@
                              IsChecked="True"
                              Style="{StaticResource ToggleButtonStyle}"
                              Click="AutoRefreshToggle_Click"/>
-                <!-- Filters temporarily disabled -->
-                <TextBlock Text="Filters: All Hosts | All Status" 
+                <!-- Filters -->
+                <TextBlock Text="Host:" 
                           VerticalAlignment="Center" 
                           Foreground="#CCCCCC" 
-                          Margin="20,0,5,0"
-                          FontStyle="Italic"/>
+                          Margin="20,0,5,0"/>
+                <ComboBox x:Name="HostFilterComboBox"
+                         Width="100"
+                         Margin="5,0"
+                         SelectionChanged="HostFilterComboBox_SelectionChanged">
+                    <ComboBox.Style>
+                        <Style TargetType="ComboBox">
+                            <Setter Property="Background" Value="#1E1E1E"/>
+                            <Setter Property="Foreground" Value="#CCCCCC"/>
+                            <Setter Property="BorderBrush" Value="#404040"/>
+                            <Setter Property="FontSize" Value="14"/>
+                        </Style>
+                    </ComboBox.Style>
+                </ComboBox>
+                <TextBlock Text="Status:" 
+                          VerticalAlignment="Center" 
+                          Foreground="#CCCCCC" 
+                          Margin="20,0,5,0"/>
+                <ComboBox x:Name="StatusFilterComboBox"
+                         Width="100"
+                         Margin="5,0"
+                         SelectionChanged="StatusFilterComboBox_SelectionChanged">
+                    <ComboBox.Style>
+                        <Style TargetType="ComboBox">
+                            <Setter Property="Background" Value="#1E1E1E"/>
+                            <Setter Property="Foreground" Value="#CCCCCC"/>
+                            <Setter Property="BorderBrush" Value="#404040"/>
+                            <Setter Property="FontSize" Value="14"/>
+                        </Style>
+                    </ComboBox.Style>
+                </ComboBox>
             </StackPanel>
         </Border>
 
@@ -269,7 +300,7 @@
                                              HorizontalAlignment="Center" 
                                              VerticalAlignment="Center"
                                              Foreground="White" 
-                                             FontSize="10" 
+                                             FontSize="12" 
                                              FontWeight="Bold"/>
                                 </Grid>
                             </DataTemplate>
