@@ -86,7 +86,8 @@ namespace BoincDashboard
         {
             _refreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMinutes(1),
+                /////////////// takes around 0.5s to update
+                Interval = TimeSpan.FromSeconds(1),
             };
             _refreshTimer.Tick += async (s, e) => await LoadAllTasks();
             _refreshTimer.Start();
