@@ -60,6 +60,9 @@ namespace BoincDashboard
         // Connection pooling for keeping authenticated sessions alive
         private Dictionary<string, BoincConnection> _activeConnections = new();
         private readonly object _connectionLock = new object();
+        
+        // Sort state preservation
+        private bool _isFirstLoad = true;
 
         public MainWindow()
         {
@@ -147,13 +150,36 @@ namespace BoincDashboard
             // Update UI on main thread
             Dispatcher.Invoke(() =>
             {
-                TasksDataGrid.ItemsSource = allTasks;
-                // Default sort by ElapsedTime descending
+                // Save current sort state before refreshing data
+                var currentSortDescriptions = new List<System.ComponentModel.SortDescription>();
                 var collectionView = System.Windows.Data.CollectionViewSource.GetDefaultView(TasksDataGrid.ItemsSource);
+                if (collectionView?.SortDescriptions != null)
+                {
+                    currentSortDescriptions.AddRange(collectionView.SortDescriptions);
+                }
+                
+                TasksDataGrid.ItemsSource = allTasks;
+                
+                // Restore or apply default sort
+                collectionView = System.Windows.Data.CollectionViewSource.GetDefaultView(TasksDataGrid.ItemsSource);
                 if (collectionView != null)
                 {
                     collectionView.SortDescriptions.Clear();
-                    collectionView.SortDescriptions.Add(new System.ComponentModel.SortDescription("ElapsedTime", System.ComponentModel.ListSortDirection.Descending));
+                    
+                    if (_isFirstLoad || currentSortDescriptions.Count == 0)
+                    {
+                        // Default sort by ElapsedTime descending for first load
+                        collectionView.SortDescriptions.Add(new System.ComponentModel.SortDescription("ElapsedTime", System.ComponentModel.ListSortDirection.Descending));
+                        _isFirstLoad = false;
+                    }
+                    else
+                    {
+                        // Restore previous sort state
+                        foreach (var sortDesc in currentSortDescriptions)
+                        {
+                            collectionView.SortDescriptions.Add(sortDesc);
+                        }
+                    }
                 }
                 
                 // Update counters

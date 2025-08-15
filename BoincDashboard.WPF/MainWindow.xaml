@@ -243,16 +243,20 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Host" 
                                       Binding="{Binding HostName}" 
-                                      Width="120"/>
+                                      Width="120"
+                                      SortMemberPath="HostName"/>
                     <DataGridTextColumn Header="Project" 
                                       Binding="{Binding ProjectName}" 
-                                      Width="150"/>
+                                      Width="150"
+                                      SortMemberPath="ProjectName"/>
                     <DataGridTextColumn Header="Task Name" 
                                       Binding="{Binding TaskName}" 
-                                      Width="200"/>
+                                      Width="200"
+                                      SortMemberPath="TaskName"/>
                     <DataGridTextColumn Header="Status" 
                                       Binding="{Binding State}" 
-                                      Width="100"/>
+                                      Width="100"
+                                      SortMemberPath="State"/>
                     <!-- Progress Column with Custom Template and SortMemberPath -->
                     <DataGridTemplateColumn Header="Progress" Width="120" SortMemberPath="ProgressPercent">
                         <DataGridTemplateColumn.CellTemplate>
@@ -281,7 +285,8 @@
                                       SortMemberPath="RemainingTime"/>
                     <DataGridTextColumn Header="Deadline" 
                                       Binding="{Binding Deadline, StringFormat='{}{0:MMM dd HH:mm}'}" 
-                                      Width="100"/>
+                                      Width="100"
+                                      SortMemberPath="Deadline"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
