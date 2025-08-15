@@ -100,7 +100,8 @@ namespace BoincDashboard
         {
             InitializeComponent();
             InitializeHosts();
-            SetupRefreshTimer();
+            // Don't start refresh timer yet - wait until after first load
+            SetupRefreshTimer(startImmediately: false);
             
             // Load tasks after the window is fully loaded to avoid deadlock
             this.Loaded += MainWindow_Loaded;
@@ -111,6 +112,10 @@ namespace BoincDashboard
             InitializeFilters();
             await LoadAllTasks();
             LoadAllComputers();
+            
+            // Start refresh timer only after initial load completes
+            _refreshTimer.Start();
+            Console.WriteLine("Initial load complete - refresh timer started");
         }
 
         private void InitializeFilters()
@@ -217,7 +222,7 @@ namespace BoincDashboard
             }
         }
 
-        private void SetupRefreshTimer()
+        private void SetupRefreshTimer(bool startImmediately = true)
         {
             _refreshTimer = new DispatcherTimer
             {
@@ -231,7 +236,11 @@ namespace BoincDashboard
                 await LoadAllTasks();
                 LoadAllComputers();
             };
-            _refreshTimer.Start();
+            
+            if (startImmediately)
+            {
+                _refreshTimer.Start();
+            }
         }
 
         private async Task LoadAllTasks()
@@ -263,7 +272,7 @@ namespace BoincDashboard
                     var hostTasks = await GetTasksFromHost(host);
                     allTasks.AddRange(hostTasks);
                 }
-                catch (TimeoutException ex)
+                catch (TimeoutException)
                 {
                     var errorMsg = $"[TIMEOUT] {host.Name} ({host.Address}) not accessible - connection timeout. Skipping retries.";
                     errorMessages.Add(errorMsg);
