@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Windows;
@@ -163,36 +164,41 @@ namespace BoincDashboard
             // Update UI on main thread
             Dispatcher.Invoke(() =>
             {
-                // Save current sort state before refreshing data
-                var currentSortDescriptions = new List<System.ComponentModel.SortDescription>();
-                var collectionView = System.Windows.Data.CollectionViewSource.GetDefaultView(TasksDataGrid.ItemsSource);
-                if (collectionView?.SortDescriptions != null)
-                {
-                    currentSortDescriptions.AddRange(collectionView.SortDescriptions);
-                }
+                // Save current DataGrid column sort state
+                var currentSortColumn = TasksDataGrid.Columns.FirstOrDefault(c => c.SortDirection.HasValue);
+                var currentSortDirection = currentSortColumn?.SortDirection;
                 
                 TasksDataGrid.ItemsSource = allTasks;
                 
-                // Restore or apply default sort
-                collectionView = System.Windows.Data.CollectionViewSource.GetDefaultView(TasksDataGrid.ItemsSource);
-                if (collectionView != null)
+                // Restore sort state by updating DataGrid columns directly
+                if (_isFirstLoad)
                 {
-                    collectionView.SortDescriptions.Clear();
+                    // Set default sort on first load - find Elapsed column and set it to descending
+                    var elapsedColumn = TasksDataGrid.Columns.FirstOrDefault(c => c.SortMemberPath == "ElapsedTime");
+                    if (elapsedColumn != null)
+                    {
+                        elapsedColumn.SortDirection = System.ComponentModel.ListSortDirection.Descending;
+                        var collectionView = System.Windows.Data.CollectionViewSource.GetDefaultView(TasksDataGrid.ItemsSource);
+                        collectionView?.SortDescriptions.Clear();
+                        collectionView?.SortDescriptions.Add(new System.ComponentModel.SortDescription("ElapsedTime", System.ComponentModel.ListSortDirection.Descending));
+                    }
+                    _isFirstLoad = false;
+                }
+                else if (currentSortColumn != null && currentSortDirection.HasValue)
+                {
+                    // Clear all column sort directions first
+                    foreach (var column in TasksDataGrid.Columns)
+                    {
+                        column.SortDirection = null;
+                    }
                     
-                    if (_isFirstLoad || currentSortDescriptions.Count == 0)
-                    {
-                        // Default sort by ElapsedTime descending for first load
-                        collectionView.SortDescriptions.Add(new System.ComponentModel.SortDescription("ElapsedTime", System.ComponentModel.ListSortDirection.Descending));
-                        _isFirstLoad = false;
-                    }
-                    else
-                    {
-                        // Restore previous sort state
-                        foreach (var sortDesc in currentSortDescriptions)
-                        {
-                            collectionView.SortDescriptions.Add(sortDesc);
-                        }
-                    }
+                    // Restore the previously sorted column
+                    currentSortColumn.SortDirection = currentSortDirection;
+                    
+                    // Apply the sort to the collection view
+                    var collectionView = System.Windows.Data.CollectionViewSource.GetDefaultView(TasksDataGrid.ItemsSource);
+                    collectionView?.SortDescriptions.Clear();
+                    collectionView?.SortDescriptions.Add(new System.ComponentModel.SortDescription(currentSortColumn.SortMemberPath, currentSortDirection.Value));
                 }
                 
                 // Update counters
