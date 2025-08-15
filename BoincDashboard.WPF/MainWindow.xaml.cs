@@ -11,6 +11,20 @@ using Newtonsoft.Json;
 
 namespace BoincDashboard
 {
+    public class BoincConnection : IDisposable
+    {
+        public TcpClient? TcpClient { get; set; }
+        public NetworkStream? Stream { get; set; }
+        public DateTime LastUsed { get; set; }
+        public bool IsConnected => TcpClient?.Connected == true && Stream?.CanRead == true && Stream?.CanWrite == true;
+
+        public void Dispose()
+        {
+            Stream?.Dispose();
+            TcpClient?.Dispose();
+        }
+    }
+
     public class BoincHost
     {
         public string Name { get; set; } = string.Empty;
@@ -35,6 +49,10 @@ namespace BoincDashboard
     {
         private DispatcherTimer _refreshTimer = new();
         private List<BoincHost> _hosts = new();
+        
+        // Connection pooling for keeping authenticated sessions alive
+        private Dictionary<string, BoincConnection> _activeConnections = new();
+        private readonly object _connectionLock = new object();
 
         public MainWindow()
         {
@@ -100,6 +118,9 @@ namespace BoincDashboard
             var allTasks = new List<BoincTask>();
             var errorMessages = new List<string>();
 
+            // Clean up stale connections before starting
+            CleanupStaleConnections();
+
             foreach (var host in _hosts)
             {
                 try
@@ -153,44 +174,16 @@ namespace BoincDashboard
 
             try
             {
-                using var client = new TcpClient();
+                var connection = await GetOrCreateConnection(host);
                 
-                // Set a timeout for connection
-                client.ReceiveTimeout = 10000; // 10 seconds
-                client.SendTimeout = 10000;
-
-                // Handle both IPv4 and IPv6
-                if (host.Address.Contains(':'))
-                {
-                    await client.ConnectAsync(System.Net.IPAddress.Parse(host.Address), host.Port);
-                }
-                else
-                {
-                    await client.ConnectAsync(host.Address, host.Port);
-                }
-
-                using var stream = client.GetStream();
-
-                // Authenticate
-                await AuthenticateAsync(stream, host.Password);
-
                 // Get project list first to map URLs to names
-                var projects = await SendRpcCommand(stream, "<boinc_gui_rpc_request><get_project_status/></boinc_gui_rpc_request>");
+                var projects = await SendRpcCommand(connection.Stream!, "<boinc_gui_rpc_request><get_project_status/></boinc_gui_rpc_request>");
                 var projectMap = ParseProjects(projects);
 
                 // Get active tasks
-                var tasksXml = await SendRpcCommand(stream, "<boinc_gui_rpc_request><get_results/></boinc_gui_rpc_request>");
-                
-                // Debug: Log the raw XML to see what we're getting
-                Console.WriteLine($"Raw tasks XML from {host.Name}:");
-                Console.WriteLine(tasksXml);
-                Console.WriteLine("--- End Raw XML ---");
+                var tasksXml = await SendRpcCommand(connection.Stream!, "<boinc_gui_rpc_request><get_results/></boinc_gui_rpc_request>");
                 
                 // Also get current CC status to see actively running tasks
-                var ccStatusXml = await SendRpcCommand(stream, "<boinc_gui_rpc_request><get_cc_status/></boinc_gui_rpc_request>");
-                Console.WriteLine($"CC Status XML from {host.Name}:");
-                Console.WriteLine(ccStatusXml);
-                Console.WriteLine("--- End CC Status XML ---");
                 
                 var taskElements = XDocument.Parse(tasksXml)
                     .Descendants("result");
@@ -222,9 +215,6 @@ namespace BoincDashboard
                         progressPercent = double.Parse(fractionDone) * 100;
                     }
                     
-                    // Debug: Print task details
-                    Console.WriteLine($"Task: {taskElement.Element("name")?.Value}, State: {stateValue}, Scheduler: {schedulerState}, Active: {activeTask != null}, ActiveTaskState: {activeTaskState}, Final State: {state}, Progress: {progressPercent:F1}%");
-                    
                     var task = new BoincTask
                     {
                         HostName = host.Name,
@@ -251,25 +241,130 @@ namespace BoincDashboard
             return tasks;
         }
 
+        private async Task<BoincConnection> GetOrCreateConnection(BoincHost host)
+        {
+            var connectionKey = $"{host.Address}:{host.Port}";
+            
+            lock (_connectionLock)
+            {
+                // Check if we have a valid existing connection
+                if (_activeConnections.TryGetValue(connectionKey, out var existingConnection))
+                {
+                    if (existingConnection.IsConnected)
+                    {
+                        existingConnection.LastUsed = DateTime.Now;
+                        Console.WriteLine($"Reusing connection to {host.Name}");
+                        return existingConnection;
+                    }
+                    else
+                    {
+                        // Connection is stale, remove it
+                        Console.WriteLine($"Removing stale connection to {host.Name}");
+                        existingConnection.Dispose();
+                        _activeConnections.Remove(connectionKey);
+                    }
+                }
+            }
+
+            // Create new connection
+            Console.WriteLine($"Creating new connection to {host.Name}");
+            var newConnection = await CreateAndAuthenticateConnection(host);
+            
+            lock (_connectionLock)
+            {
+                _activeConnections[connectionKey] = newConnection;
+            }
+            
+            return newConnection;
+        }
+
+        private async Task<BoincConnection> CreateAndAuthenticateConnection(BoincHost host)
+        {
+            var client = new TcpClient();
+            
+            try
+            {
+                // Set timeouts
+                client.ReceiveTimeout = 10000; // 10 seconds
+                client.SendTimeout = 10000;
+
+                // Connect to host
+                if (host.Address.Contains(':'))
+                {
+                    await client.ConnectAsync(System.Net.IPAddress.Parse(host.Address), host.Port);
+                }
+                else
+                {
+                    await client.ConnectAsync(host.Address, host.Port);
+                }
+
+                var stream = client.GetStream();
+                
+                // Authenticate
+                await AuthenticateAsync(stream, host.Password);
+                
+                Console.WriteLine($"Successfully authenticated to {host.Name}");
+                
+                return new BoincConnection
+                {
+                    TcpClient = client,
+                    Stream = stream,
+                    LastUsed = DateTime.Now
+                };
+            }
+            catch
+            {
+                client.Dispose();
+                throw;
+            }
+        }
+
+        private void CleanupStaleConnections()
+        {
+            lock (_connectionLock)
+            {
+                var staleConnections = _activeConnections
+                    .Where(kvp => !kvp.Value.IsConnected || DateTime.Now - kvp.Value.LastUsed > TimeSpan.FromMinutes(5))
+                    .ToList();
+
+                foreach (var (key, connection) in staleConnections)
+                {
+                    Console.WriteLine($"Cleaning up stale connection: {key}");
+                    connection.Dispose();
+                    _activeConnections.Remove(key);
+                }
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // Cleanup all connections when window closes
+            lock (_connectionLock)
+            {
+                foreach (var connection in _activeConnections.Values)
+                {
+                    connection.Dispose();
+                }
+                _activeConnections.Clear();
+            }
+            base.OnClosed(e);
+        }
+
         private async Task AuthenticateAsync(NetworkStream stream, string password)
         {
             try
             {
-                Console.WriteLine("Starting BOINC authentication...");
-                
                 // Give BOINC a moment to prepare after connection
                 await Task.Delay(100);
                 
                 // Send auth1 command to get nonce
                 var auth1Command = "<boinc_gui_rpc_request><auth1/></boinc_gui_rpc_request>";
-                Console.WriteLine($"Sending auth1: {auth1Command}");
                 var auth1Bytes = Encoding.UTF8.GetBytes(auth1Command + "\x03");
                 await stream.WriteAsync(auth1Bytes);
                 await stream.FlushAsync(); // Ensure data is sent immediately
                 
                 // Read nonce response with timeout
                 var nonceResponse = await ReadResponseWithTimeout(stream, 5000); // 5 second timeout
-                Console.WriteLine($"Received nonce response: '{nonceResponse}'");
                 
                 if (string.IsNullOrEmpty(nonceResponse))
                 {
@@ -291,7 +386,6 @@ namespace BoincDashboard
                 }
                 
                 var nonce = nonceResponse.Substring(nonceStart + 7, nonceEnd - nonceStart - 7);
-                Console.WriteLine($"Extracted nonce: {nonce}");
                 
                 // Calculate MD5 hash of nonce + password
                 using var md5 = MD5.Create();
@@ -301,22 +395,18 @@ namespace BoincDashboard
                 
                 // Send auth2 command with hash
                 var auth2Command = $"<boinc_gui_rpc_request><auth2><nonce_hash>{hash}</nonce_hash></auth2></boinc_gui_rpc_request>";
-                Console.WriteLine($"Sending auth2: {auth2Command}");
                 var auth2Bytes = Encoding.UTF8.GetBytes(auth2Command + "\x03");
                 await stream.WriteAsync(auth2Bytes);
                 await stream.FlushAsync(); // Ensure data is sent immediately
                 
                 // Read auth response
                 var authResponse = await ReadResponseWithTimeout(stream, 5000);
-                Console.WriteLine($"Received auth response: '{authResponse}'");
                 
                 // Check if authentication was successful
                 if (!authResponse.Contains("<authorized/>"))
                 {
                     throw new Exception($"Authentication failed. Response: '{authResponse}'. Check GUI RPC password.");
                 }
-                
-                Console.WriteLine("Authentication successful!");
             }
             catch (Exception ex)
             {
@@ -369,9 +459,6 @@ namespace BoincDashboard
                 {
                     // Make sure we have a complete XML structure
                     var cleanResponse = currentResponse.Replace("\x03", "");
-                    
-                    // Debug: Log the response to see what we're getting
-                    Console.WriteLine($"BOINC Response: {cleanResponse}");
                     
                     // Basic validation - responses should contain XML tags
                     if (cleanResponse.Contains("<") && cleanResponse.Contains(">"))
