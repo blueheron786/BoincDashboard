@@ -276,12 +276,12 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Elapsed" 
-                                      Binding="{Binding ElapsedTime, StringFormat='{}{0:hh\\:mm\\:ss}'}" 
-                                      Width="80" 
+                                      Binding="{Binding ElapsedTimeFormatted}" 
+                                      Width="95" 
                                       SortMemberPath="ElapsedTime"/>
                     <DataGridTextColumn Header="Remaining" 
-                                      Binding="{Binding RemainingTime, StringFormat='{}{0:hh\\:mm\\:ss}'}" 
-                                      Width="80" 
+                                      Binding="{Binding RemainingTimeFormatted}" 
+                                      Width="95" 
                                       SortMemberPath="RemainingTime"/>
                     <DataGridTextColumn Header="Deadline" 
                                       Binding="{Binding Deadline, StringFormat='{}{0:MMM dd HH:mm}'}" 
