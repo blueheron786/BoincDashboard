@@ -222,7 +222,7 @@
                        Style="{StaticResource ButtonStyle}"
                        Click="SettingsButton_Click"/>
                 <ToggleButton x:Name="AutoRefreshToggle" 
-                             Content="⏱️ Auto-Refresh (every 1m)"
+                             Content="⏱️ Auto-Refresh (every second)"
                              IsChecked="True"
                              Style="{StaticResource ToggleButtonStyle}"
                              Click="AutoRefreshToggle_Click"/>
