@@ -148,6 +148,15 @@ namespace BoincDashboard
                     collectionView.SortDescriptions.Clear();
                     collectionView.SortDescriptions.Add(new System.ComponentModel.SortDescription("ElapsedTime", System.ComponentModel.ListSortDirection.Descending));
                 }
+                
+                // Update counters
+                var activeHostsCount = _hosts.Count - errorMessages.Count;
+                var totalTasksCount = allTasks.Count;
+                var runningTasksCount = allTasks.Count(t => t.State == "Running");
+                
+                TotalTasksLabel.Text = $"Total Tasks: {totalTasksCount} ({runningTasksCount} running)";
+                ActiveHostsLabel.Text = $"Active Hosts: {activeHostsCount}/{_hosts.Count}";
+                
                 var statusText = $"Last Updated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
                 if (errorMessages.Count > 0)
                 {
