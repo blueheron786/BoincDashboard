@@ -67,6 +67,17 @@ namespace BoincDashboard
                 : $"Elapsed: {ElapsedTimeFormatted}";
     }
 
+    public class BoincComputer
+    {
+        public string HostName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public int ActiveTasks { get; set; }
+        public int TotalTasks { get; set; }
+        public string Platform { get; set; } = string.Empty;
+        public string BoincVersion { get; set; } = string.Empty;
+        public DateTime LastContact { get; set; }
+    }
+
     public partial class MainWindow : Window
     {
         private DispatcherTimer _refreshTimer = new();
@@ -81,6 +92,7 @@ namespace BoincDashboard
         
         // Filter state
         private List<BoincTask> _allTasks = new();
+        private List<BoincComputer> _allComputers = new();
         private string _selectedHost = "All Hosts";
         private string _selectedStatus = "All Status";
 
@@ -98,6 +110,7 @@ namespace BoincDashboard
         {
             InitializeFilters();
             await LoadAllTasks();
+            LoadAllComputers();
         }
 
         private void InitializeFilters()
@@ -213,7 +226,11 @@ namespace BoincDashboard
                 // Keep it slow so we get consistent results.
                 Interval = TimeSpan.FromSeconds(5),
             };
-            _refreshTimer.Tick += async (s, e) => await LoadAllTasks();
+            _refreshTimer.Tick += async (s, e) => 
+            {
+                await LoadAllTasks();
+                LoadAllComputers();
+            };
             _refreshTimer.Start();
         }
 
@@ -246,12 +263,29 @@ namespace BoincDashboard
                     var hostTasks = await GetTasksFromHost(host);
                     allTasks.AddRange(hostTasks);
                 }
+                catch (TimeoutException ex)
+                {
+                    var errorMsg = $"[TIMEOUT] {host.Name} ({host.Address}) not accessible - connection timeout. Skipping retries.";
+                    errorMessages.Add(errorMsg);
+                    Console.WriteLine(errorMsg);
+                }
                 catch (Exception ex)
                 {
                     var errorMsg = $"Error connecting to {host.Name} ({host.Address}): {ex.Message}";
                     errorMessages.Add(errorMsg);
-                    Console.WriteLine(errorMsg);
-                    Console.WriteLine($"Full exception: {ex}");
+                    
+                    // Specific handling for other connection timeouts - don't retry
+                    if (ex.Message.Contains("connection attempt failed") || 
+                        ex.Message.Contains("did not properly respond after a period of time") ||
+                        ex.Message.Contains("failed to respond"))
+                    {
+                        Console.WriteLine($"[TIMEOUT] {host.Name} ({host.Address}) not accessible - connection timeout. Skipping retries.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ERROR] {errorMsg}");
+                        Console.WriteLine($"Full exception: {ex}");
+                    }
                 }
             }
 
@@ -338,6 +372,132 @@ namespace BoincDashboard
             });
             stopwatch.Stop();
             Console.WriteLine($"Total refresh time: {stopwatch.ElapsedMilliseconds} ms");
+        }
+
+        private void LoadAllComputers()
+        {
+            try
+            {
+                Console.WriteLine("LoadAllComputers: Creating computer list from existing task data...");
+                var allComputers = new List<BoincComputer>();
+
+                // Get distinct computers from tasks
+                var distinctHosts = _allTasks.GroupBy(t => t.HostName).ToList();
+                
+                // Add computers that have tasks
+                foreach (var hostGroup in distinctHosts)
+                {
+                    var hostTasks = hostGroup.ToList();
+                    var computer = new BoincComputer
+                    {
+                        HostName = hostGroup.Key,
+                        Status = "Online",
+                        ActiveTasks = hostTasks.Count(t => t.State == "Running"),
+                        TotalTasks = hostTasks.Count,
+                        Platform = "Active Host", // We know it's active if it has tasks
+                        BoincVersion = "Connected",
+                        LastContact = DateTime.Now
+                    };
+                    allComputers.Add(computer);
+                    Console.WriteLine($"Added computer from tasks: {computer.HostName} ({computer.ActiveTasks}/{computer.TotalTasks} tasks)");
+                }
+
+                // Add configured hosts that don't have any tasks (offline hosts)
+                var hostsWithTasks = distinctHosts.Select(g => g.Key).ToHashSet();
+                foreach (var configuredHost in _hosts)
+                {
+                    if (!hostsWithTasks.Contains(configuredHost.Name))
+                    {
+                        var offlineComputer = new BoincComputer
+                        {
+                            HostName = configuredHost.Name,
+                            Status = "Offline",
+                            ActiveTasks = 0,
+                            TotalTasks = 0,
+                            Platform = "Unknown",
+                            BoincVersion = "Unknown",
+                            LastContact = DateTime.MinValue
+                        };
+                        allComputers.Add(offlineComputer);
+                        Console.WriteLine($"Added offline computer: {offlineComputer.HostName}");
+                    }
+                }
+
+                var activeHostsCount = allComputers.Count(c => c.Status == "Online");
+
+                // Update UI on the main thread
+                Console.WriteLine($"LoadAllComputers: Updating UI with {allComputers.Count} computers ({activeHostsCount} online)");
+                
+                Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        _allComputers = allComputers;
+                        ComputersDataGrid.ItemsSource = null; // Clear first
+                        ComputersDataGrid.ItemsSource = allComputers; // Then set new data
+                        ComputerCountLabel.Text = $"Total Computers: {allComputers.Count} ({activeHostsCount} online)";
+                        Console.WriteLine("LoadAllComputers: UI updated successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error updating computers UI: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LoadAllComputers: Fatal error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+        }
+
+        private async Task<BoincComputer?> GetComputerInfo(BoincHost host, List<BoincTask> hostTasks)
+        {
+            try
+            {
+                var connection = await GetOrCreateConnection(host);
+                
+                // Get host info and version
+                var hostInfoXml = await SendRpcCommand(connection.Stream!, "<boinc_gui_rpc_request><get_host_info/></boinc_gui_rpc_request>");
+                var versionXml = await SendRpcCommand(connection.Stream!, "<boinc_gui_rpc_request><exchange_versions/></boinc_gui_rpc_request>");
+                
+                var hostDoc = XDocument.Parse(hostInfoXml);
+                var versionDoc = XDocument.Parse(versionXml);
+                
+                var computer = new BoincComputer
+                {
+                    HostName = host.Name,
+                    Status = "Online",
+                    ActiveTasks = hostTasks.Count(t => t.State == "Running"),
+                    TotalTasks = hostTasks.Count,
+                    Platform = GetPlatformString(hostDoc),
+                    BoincVersion = versionDoc.Descendants("version").FirstOrDefault()?.Value ?? "Unknown",
+                    LastContact = DateTime.Now
+                };
+
+                return computer;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting computer info from {host.Name}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private string GetPlatformString(XDocument hostDoc)
+        {
+            try
+            {
+                var osName = hostDoc.Descendants("os_name").FirstOrDefault()?.Value ?? "";
+                var osVersion = hostDoc.Descendants("os_version").FirstOrDefault()?.Value ?? "";
+                var architecture = hostDoc.Descendants("p_name").FirstOrDefault()?.Value ?? "";
+                
+                return $"{osName} {osVersion} ({architecture})".Trim();
+            }
+            catch
+            {
+                return "Unknown";
+            }
         }
 
         private async Task<List<BoincTask>> GetTasksFromHost(BoincHost host)
@@ -491,22 +651,25 @@ namespace BoincDashboard
             try
             {
                 // Set timeouts
-                client.ReceiveTimeout = 10000; // 10 seconds
-                client.SendTimeout = 10000;
+                client.ReceiveTimeout = 5000; // 5 seconds for faster timeout detection
+                client.SendTimeout = 5000;
 
-                // Connect to host
+                // Create cancellation token for connection timeout
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                
+                // Connect to host with timeout
                 if (host.Address.Contains(':'))
                 {
-                    await client.ConnectAsync(System.Net.IPAddress.Parse(host.Address), host.Port);
+                    await client.ConnectAsync(System.Net.IPAddress.Parse(host.Address), host.Port, cts.Token);
                 }
                 else
                 {
-                    await client.ConnectAsync(host.Address, host.Port);
+                    await client.ConnectAsync(host.Address, host.Port, cts.Token);
                 }
 
                 var stream = client.GetStream();
                 
-                // Authenticate
+                // Authenticate with timeout
                 await AuthenticateAsync(stream, host.Password);
                 
                 Console.WriteLine($"Successfully authenticated to {host.Name}");
@@ -517,6 +680,11 @@ namespace BoincDashboard
                     Stream = stream,
                     LastUsed = DateTime.Now
                 };
+            }
+            catch (OperationCanceledException)
+            {
+                client.Dispose();
+                throw new TimeoutException($"Connection to {host.Name} ({host.Address}) timed out after 5 seconds");
             }
             catch
             {
@@ -757,6 +925,7 @@ namespace BoincDashboard
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             await LoadAllTasks();
+            LoadAllComputers();
         }
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)

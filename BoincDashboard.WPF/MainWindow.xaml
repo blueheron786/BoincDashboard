@@ -179,11 +179,176 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- TabControl Style -->
+        <Style x:Key="TabControlStyle" TargetType="TabControl">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style x:Key="TabItemStyle" TargetType="TabItem">
+            <Setter Property="Background" Value="#3F3F46"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="0,0,2,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border Name="Border" 
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="4,4,0,0"
+                                Margin="{TemplateBinding Margin}">
+                            <ContentPresenter Name="ContentSite"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            ContentSource="Header"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#007ACC"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#464647"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark Theme ComboBox Style -->
+        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="BorderBrush" Value="#404040"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        Focusable="False"
+                                        IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                        ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Name="Border"
+                                               Background="{TemplateBinding Background}"
+                                               BorderBrush="{TemplateBinding BorderBrush}"
+                                               BorderThickness="{TemplateBinding BorderThickness}"
+                                               CornerRadius="3">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="20"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path Name="Arrow"
+                                                     Grid.Column="1"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"
+                                                     Data="M 0 0 L 4 4 L 8 0 Z"
+                                                     Fill="#CCCCCC"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="#2D2D30"/>
+                                                <Setter TargetName="Border" Property="BorderBrush" Value="#007ACC"/>
+                                                <Setter TargetName="Arrow" Property="Fill" Value="#F1F1F1"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="Border" Property="Background" Value="#3F3F46"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Name="ContentSite"
+                                            IsHitTestVisible="False"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                            Margin="{TemplateBinding Padding}"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Left"/>
+                            <Popup Name="Popup"
+                                  Placement="Bottom"
+                                  IsOpen="{TemplateBinding IsDropDownOpen}"
+                                  AllowsTransparency="True"
+                                  Focusable="False"
+                                  PopupAnimation="Slide">
+                                <Grid Name="DropDown"
+                                     SnapsToDevicePixels="True"
+                                     MinWidth="{TemplateBinding ActualWidth}"
+                                     MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border Name="DropDownBorder"
+                                           Background="#2D2D30"
+                                           BorderBrush="#404040"
+                                           BorderThickness="1"
+                                           CornerRadius="3"
+                                           Margin="0,1,0,0">
+                                        <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" 
+                                                       KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#666666"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark Theme ComboBoxItem Style -->
+        <Style x:Key="DarkComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border Name="Border"
+                               Background="{TemplateBinding Background}"
+                               BorderThickness="0"
+                               Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#094771"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -192,7 +357,7 @@
         <!-- Header -->
         <Border Grid.Row="0" Background="#252526" Padding="10">
             <StackPanel>
-                <TextBlock Text="BOINC Multi-Host Task Dashboard" 
+                <TextBlock Text="BOINC Multi-Host Dashboard" 
                           Style="{StaticResource HeaderTextStyle}"/>
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="TotalTasksLabel" 
@@ -212,62 +377,63 @@
             </StackPanel>
         </Border>
 
-        <!-- Control Panel -->
-        <Border Grid.Row="1" Background="#2D2D30" Padding="10" BorderThickness="0,1" BorderBrush="#3F3F46">
-            <StackPanel Orientation="Horizontal">
-                <Button x:Name="RefreshButton" 
-                       Content="🔄 Refresh Now" 
-                       Style="{StaticResource ButtonStyle}"
-                       Click="RefreshButton_Click"/>
-                <Button x:Name="SettingsButton" 
-                       Content="⚙️ Host Settings" 
-                       Style="{StaticResource ButtonStyle}"
-                       Click="SettingsButton_Click"/>
-                <ToggleButton x:Name="AutoRefreshToggle" 
-                             Content="⏱️ Auto-Refresh (every 5s)"
-                             IsChecked="True"
-                             Style="{StaticResource ToggleButtonStyle}"
-                             Click="AutoRefreshToggle_Click"/>
-                <!-- Filters -->
-                <TextBlock Text="Host:" 
-                          VerticalAlignment="Center" 
-                          Foreground="#CCCCCC" 
-                          Margin="20,0,5,0"/>
-                <ComboBox x:Name="HostFilterComboBox"
-                         Width="100"
-                         Margin="5,0"
-                         SelectionChanged="HostFilterComboBox_SelectionChanged">
-                    <ComboBox.Style>
-                        <Style TargetType="ComboBox">
-                            <Setter Property="Background" Value="#1E1E1E"/>
-                            <Setter Property="Foreground" Value="#CCCCCC"/>
-                            <Setter Property="BorderBrush" Value="#404040"/>
-                            <Setter Property="FontSize" Value="14"/>
-                        </Style>
-                    </ComboBox.Style>
-                </ComboBox>
-                <TextBlock Text="Status:" 
-                          VerticalAlignment="Center" 
-                          Foreground="#CCCCCC" 
-                          Margin="20,0,5,0"/>
-                <ComboBox x:Name="StatusFilterComboBox"
-                         Width="100"
-                         Margin="5,0"
-                         SelectionChanged="StatusFilterComboBox_SelectionChanged">
-                    <ComboBox.Style>
-                        <Style TargetType="ComboBox">
-                            <Setter Property="Background" Value="#1E1E1E"/>
-                            <Setter Property="Foreground" Value="#CCCCCC"/>
-                            <Setter Property="BorderBrush" Value="#404040"/>
-                            <Setter Property="FontSize" Value="14"/>
-                        </Style>
-                    </ComboBox.Style>
-                </ComboBox>
-            </StackPanel>
-        </Border>
+        <!-- Tab Control -->
+        <TabControl Grid.Row="1" 
+                   x:Name="MainTabControl"
+                   Style="{StaticResource TabControlStyle}">
+            
+            <!-- Tasks Tab -->
+            <TabItem Header="📋 Tasks" Style="{StaticResource TabItemStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-        <!-- Main Data Grid -->
-        <Border Grid.Row="2" Background="#3F3F46" Margin="10" CornerRadius="4">
+                    <!-- Control Panel -->
+                    <Border Grid.Row="0" Background="#2D2D30" Padding="10" BorderThickness="0,1" BorderBrush="#3F3F46">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="RefreshButton" 
+                                   Content="🔄 Refresh Now" 
+                                   Style="{StaticResource ButtonStyle}"
+                                   Click="RefreshButton_Click"/>
+                            <Button x:Name="SettingsButton" 
+                                   Content="⚙️ Host Settings" 
+                                   Style="{StaticResource ButtonStyle}"
+                                   Click="SettingsButton_Click"/>
+                            <ToggleButton x:Name="AutoRefreshToggle" 
+                                         Content="⏱️ Auto-Refresh (every 5s)"
+                                         IsChecked="True"
+                                         Style="{StaticResource ToggleButtonStyle}"
+                                         Click="AutoRefreshToggle_Click"/>
+                            <!-- Filters -->
+                            <TextBlock Text="Host:" 
+                                      VerticalAlignment="Center" 
+                                      Foreground="#CCCCCC" 
+                                      Margin="20,0,5,0"/>
+                            <ComboBox x:Name="HostFilterComboBox"
+                                     Width="100"
+                                     Margin="5,0"
+                                     Style="{StaticResource DarkComboBoxStyle}"
+                                     ItemContainerStyle="{StaticResource DarkComboBoxItemStyle}"
+                                     SelectionChanged="HostFilterComboBox_SelectionChanged">
+                            </ComboBox>
+                            <TextBlock Text="Status:" 
+                                      VerticalAlignment="Center" 
+                                      Foreground="#CCCCCC" 
+                                      Margin="20,0,5,0"/>
+                            <ComboBox x:Name="StatusFilterComboBox"
+                                     Width="100"
+                                     Margin="5,0"
+                                     Style="{StaticResource DarkComboBoxStyle}"
+                                     ItemContainerStyle="{StaticResource DarkComboBoxItemStyle}"
+                                     SelectionChanged="StatusFilterComboBox_SelectionChanged">
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tasks Data Grid -->
+                    <Border Grid.Row="1" Background="#3F3F46" Margin="10" CornerRadius="4">
             <DataGrid x:Name="TasksDataGrid" 
                      Style="{StaticResource DataGridStyle}"
                      ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}">
@@ -278,7 +444,7 @@
                                       SortMemberPath="HostName"/>
                     <DataGridTextColumn Header="Project" 
                                       Binding="{Binding ProjectName}" 
-                                      Width="150"
+                                      Width="180"
                                       SortMemberPath="ProjectName"/>
                     <DataGridTextColumn Header="Task Name" 
                                       Binding="{Binding TaskName}" 
@@ -320,10 +486,76 @@
                                       SortMemberPath="Deadline"/>
                 </DataGrid.Columns>
             </DataGrid>
-        </Border>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Computers Tab -->
+            <TabItem Header="💻 Computers" Style="{StaticResource TabItemStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Computers Control Panel -->
+                    <Border Grid.Row="0" Background="#2D2D30" Padding="10" BorderThickness="0,1" BorderBrush="#3F3F46">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="RefreshComputersButton" 
+                                   Content="🔄 Refresh Computers" 
+                                   Style="{StaticResource ButtonStyle}"
+                                   Click="RefreshButton_Click"/>
+                            <TextBlock x:Name="ComputerCountLabel" 
+                                      Text="Total Computers: 0" 
+                                      Style="{StaticResource StatusTextStyle}"
+                                      Margin="20,0,0,0"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Computers Data Grid -->
+                    <Border Grid.Row="1" Background="#3F3F46" Margin="10" CornerRadius="4">
+                        <DataGrid x:Name="ComputersDataGrid" 
+                                 Style="{StaticResource DataGridStyle}"
+                                 ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Computer Name" 
+                                                  Binding="{Binding HostName}" 
+                                                  Width="200"
+                                                  SortMemberPath="HostName"/>
+                                <DataGridTextColumn Header="Status" 
+                                                  Binding="{Binding Status}" 
+                                                  Width="120"
+                                                  SortMemberPath="Status"/>
+                                <DataGridTextColumn Header="Active Tasks" 
+                                                  Binding="{Binding ActiveTasks}" 
+                                                  Width="120"
+                                                  SortMemberPath="ActiveTasks"/>
+                                <DataGridTextColumn Header="Total Tasks" 
+                                                  Binding="{Binding TotalTasks}" 
+                                                  Width="120"
+                                                  SortMemberPath="TotalTasks"/>
+                                <DataGridTextColumn Header="Platform" 
+                                                  Binding="{Binding Platform}" 
+                                                  Width="150"
+                                                  SortMemberPath="Platform"/>
+                                <DataGridTextColumn Header="BOINC Version" 
+                                                  Binding="{Binding BoincVersion}" 
+                                                  Width="130"
+                                                  SortMemberPath="BoincVersion"/>
+                                <DataGridTextColumn Header="Last Contact" 
+                                                  Binding="{Binding LastContact, StringFormat='{}{0:MMM dd HH:mm}'}" 
+                                                  Width="120"
+                                                  SortMemberPath="LastContact"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <!-- Status Bar -->
-        <Border Grid.Row="3" Background="#007ACC" Padding="10">
+        <Border Grid.Row="2" Background="#007ACC" Padding="10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
