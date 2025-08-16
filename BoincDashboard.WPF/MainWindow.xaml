@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BoincDashboard"
         mc:Ignorable="d"
         Title="BOINC Task Dashboard" 
         Height="700" 
@@ -11,6 +12,9 @@
         Background="#2D2D30">
 
     <Window.Resources>
+        <!-- Converters -->
+        <local:LastContactConverter x:Key="LastContactConverter"/>
+        
         <!-- Styles -->
         <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="22"/>
@@ -152,6 +156,23 @@
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
             <Setter Property="BorderBrush" Value="#0E639C"/>
+        </Style>
+
+        <!-- DataGrid Row Style for Computer Status -->
+        <Style x:Key="ComputerRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="#3F3F46"/>
+            <Setter Property="Foreground" Value="#F1F1F1"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="Offline">
+                    <Setter Property="Background" Value="#1E1E1E"/>
+                    <Setter Property="Foreground" Value="#999999"/>
+                    <Setter Property="Opacity" Value="0.7"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Online">
+                    <Setter Property="Background" Value="#3F3F46"/>
+                    <Setter Property="Foreground" Value="#F1F1F1"/>
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Progress Bar Style -->
@@ -510,6 +531,35 @@
                                       Style="{StaticResource StatusTextStyle}"
                                       Margin="20,0,0,0"
                                       VerticalAlignment="Center"/>
+                            <!-- Online/Offline Status Summary -->
+                            <Border Background="#4CAF50" 
+                                   CornerRadius="3" 
+                                   Padding="8,4" 
+                                   Margin="15,0,5,0"
+                                   VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Fill="White" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <TextBlock x:Name="OnlineCountLabel" 
+                                              Text="0 Online" 
+                                              Foreground="White" 
+                                              FontWeight="Bold"
+                                              FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#F44336" 
+                                   CornerRadius="3" 
+                                   Padding="8,4" 
+                                   Margin="0,0,5,0"
+                                   VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Fill="White" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                    <TextBlock x:Name="OfflineCountLabel" 
+                                              Text="0 Offline" 
+                                              Foreground="White" 
+                                              FontWeight="Bold"
+                                              FontSize="12"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
@@ -517,16 +567,74 @@
                     <Border Grid.Row="1" Background="#3F3F46" Margin="10" CornerRadius="4">
                         <DataGrid x:Name="ComputersDataGrid" 
                                  Style="{StaticResource DataGridStyle}"
-                                 ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}">
+                                 ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+                                 RowStyle="{StaticResource ComputerRowStyle}">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Computer Name" 
-                                                  Binding="{Binding HostName}" 
-                                                  Width="200"
-                                                  SortMemberPath="HostName"/>
-                                <DataGridTextColumn Header="Status" 
-                                                  Binding="{Binding Status}" 
-                                                  Width="120"
-                                                  SortMemberPath="Status"/>
+                                <DataGridTemplateColumn Header="Computer Name" 
+                                                      Width="200"
+                                                      SortMemberPath="HostName">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Online">
+                                                                    <Setter Property="Text" Value="💻"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Offline">
+                                                                    <Setter Property="Text" Value="💻"/>
+                                                                    <Setter Property="Opacity" Value="0.4"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding HostName}" 
+                                                         VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Offline">
+                                                                    <Setter Property="FontStyle" Value="Italic"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Status" 
+                                                      Width="120"
+                                                      SortMemberPath="Status">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Status}" 
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,5,0"/>
+                                                <Ellipse Width="8" Height="8" 
+                                                        VerticalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Online">
+                                                                    <Setter Property="Fill" Value="#4CAF50"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Offline">
+                                                                    <Setter Property="Fill" Value="#F44336"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Active Tasks" 
                                                   Binding="{Binding ActiveTasks}" 
                                                   Width="120"
@@ -544,7 +652,7 @@
                                                   Width="130"
                                                   SortMemberPath="BoincVersion"/>
                                 <DataGridTextColumn Header="Last Contact" 
-                                                  Binding="{Binding LastContact, StringFormat='{}{0:MMM dd HH:mm}'}" 
+                                                  Binding="{Binding LastContact, Converter={StaticResource LastContactConverter}}" 
                                                   Width="120"
                                                   SortMemberPath="LastContact"/>
                             </DataGrid.Columns>

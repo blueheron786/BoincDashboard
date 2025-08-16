@@ -10,9 +10,54 @@ using System.Windows.Threading;
 using System.Xml.Linq;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
+using System.Globalization;
+using System.Windows.Data;
 
 namespace BoincDashboard
 {
+    public class LastContactConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is DateTime dateTime)
+            {
+                if (dateTime == DateTime.MinValue)
+                {
+                    return "Never";
+                }
+
+                var timeDiff = DateTime.Now - dateTime;
+                
+                if (timeDiff.TotalMinutes < 1)
+                {
+                    return "Just now";
+                }
+                else if (timeDiff.TotalMinutes < 60)
+                {
+                    return $"{(int)timeDiff.TotalMinutes}m ago";
+                }
+                else if (timeDiff.TotalHours < 24)
+                {
+                    return $"{(int)timeDiff.TotalHours}h ago";
+                }
+                else if (timeDiff.TotalDays < 7)
+                {
+                    return $"{(int)timeDiff.TotalDays}d ago";
+                }
+                else
+                {
+                    return dateTime.ToString("MMM dd");
+                }
+            }
+            return "Unknown";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class BoincConnection : IDisposable
     {
         public TcpClient? TcpClient { get; set; }
@@ -33,6 +78,13 @@ namespace BoincDashboard
         public string Address { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public int Port { get; set; } = 31416;
+    }
+
+    public class ComputerStatus
+    {
+        public string HostName { get; set; } = string.Empty;
+        public DateTime LastSeen { get; set; }
+        public bool IsOnline { get; set; }
     }
 
     public class BoincTask
@@ -96,15 +148,95 @@ namespace BoincDashboard
         private string _selectedHost = "All Hosts";
         private string _selectedStatus = "All Status";
 
+        // Computer status persistence
+        private Dictionary<string, ComputerStatus> _computerStatusHistory = new();
+        private DispatcherTimer _statusSaveTimer = new();
+        private readonly string _statusFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BoincDashboard", "computer_status.json");
+
         public MainWindow()
         {
             InitializeComponent();
             InitializeHosts();
+            LoadComputerStatusHistory();
+            SetupStatusSaveTimer();
             // Don't start refresh timer yet - wait until after first load
             SetupRefreshTimer(startImmediately: false);
             
             // Load tasks after the window is fully loaded to avoid deadlock
             this.Loaded += MainWindow_Loaded;
+            this.Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            _statusSaveTimer?.Stop();
+            SaveComputerStatusHistory();
+        }
+
+        private void LoadComputerStatusHistory()
+        {
+            try
+            {
+                if (File.Exists(_statusFilePath))
+                {
+                    var json = File.ReadAllText(_statusFilePath);
+                    var statusList = JsonConvert.DeserializeObject<List<ComputerStatus>>(json) ?? new List<ComputerStatus>();
+                    _computerStatusHistory = statusList.ToDictionary(s => s.HostName, s => s);
+                    Console.WriteLine($"Loaded status history for {_computerStatusHistory.Count} computers");
+                }
+                else
+                {
+                    Console.WriteLine("No existing status file found, starting fresh");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading computer status history: {ex.Message}");
+                _computerStatusHistory = new Dictionary<string, ComputerStatus>();
+            }
+        }
+
+        private void SaveComputerStatusHistory()
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(_statusFilePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                var statusList = _computerStatusHistory.Values.ToList();
+                var json = JsonConvert.SerializeObject(statusList, Formatting.Indented);
+                File.WriteAllText(_statusFilePath, json);
+                Console.WriteLine($"Saved status history for {statusList.Count} computers");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving computer status history: {ex.Message}");
+            }
+        }
+
+        private void SetupStatusSaveTimer()
+        {
+            _statusSaveTimer.Interval = TimeSpan.FromMinutes(1); // Save every minute
+            _statusSaveTimer.Tick += (sender, e) => SaveComputerStatusHistory();
+            _statusSaveTimer.Start();
+        }
+
+        private void UpdateComputerStatus(string hostName, bool isOnline)
+        {
+            if (!_computerStatusHistory.ContainsKey(hostName))
+            {
+                _computerStatusHistory[hostName] = new ComputerStatus { HostName = hostName };
+            }
+
+            var status = _computerStatusHistory[hostName];
+            status.IsOnline = isOnline;
+            if (isOnline)
+            {
+                status.LastSeen = DateTime.Now;
+            }
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -393,7 +525,7 @@ namespace BoincDashboard
                 // Get distinct computers from tasks
                 var distinctHosts = _allTasks.GroupBy(t => t.HostName).ToList();
                 
-                // Add computers that have tasks
+                // Add computers that have tasks (online)
                 foreach (var hostGroup in distinctHosts)
                 {
                     var hostTasks = hostGroup.ToList();
@@ -408,6 +540,10 @@ namespace BoincDashboard
                         LastContact = DateTime.Now
                     };
                     allComputers.Add(computer);
+                    
+                    // Update status history
+                    UpdateComputerStatus(hostGroup.Key, true);
+                    
                     Console.WriteLine($"Added computer from tasks: {computer.HostName} ({computer.ActiveTasks}/{computer.TotalTasks} tasks)");
                 }
 
@@ -417,6 +553,13 @@ namespace BoincDashboard
                 {
                     if (!hostsWithTasks.Contains(configuredHost.Name))
                     {
+                        // Get last seen time from history
+                        var lastSeen = DateTime.MinValue;
+                        if (_computerStatusHistory.ContainsKey(configuredHost.Name))
+                        {
+                            lastSeen = _computerStatusHistory[configuredHost.Name].LastSeen;
+                        }
+
                         var offlineComputer = new BoincComputer
                         {
                             HostName = configuredHost.Name,
@@ -425,14 +568,24 @@ namespace BoincDashboard
                             TotalTasks = 0,
                             Platform = "Unknown",
                             BoincVersion = "Unknown",
-                            LastContact = DateTime.MinValue
+                            LastContact = lastSeen
                         };
                         allComputers.Add(offlineComputer);
-                        Console.WriteLine($"Added offline computer: {offlineComputer.HostName}");
+                        
+                        // Update status history
+                        UpdateComputerStatus(configuredHost.Name, false);
+                        
+                        Console.WriteLine($"Added offline computer: {offlineComputer.HostName} (last seen: {(lastSeen == DateTime.MinValue ? "Never" : lastSeen.ToString("yyyy-MM-dd HH:mm:ss"))})");
                     }
                 }
 
                 var activeHostsCount = allComputers.Count(c => c.Status == "Online");
+
+                // Sort computers with online first, then offline, then by hostname
+                allComputers = allComputers
+                    .OrderBy(c => c.Status == "Offline" ? 1 : 0)
+                    .ThenBy(c => c.HostName)
+                    .ToList();
 
                 // Update UI on the main thread
                 Console.WriteLine($"LoadAllComputers: Updating UI with {allComputers.Count} computers ({activeHostsCount} online)");
@@ -445,6 +598,12 @@ namespace BoincDashboard
                         ComputersDataGrid.ItemsSource = null; // Clear first
                         ComputersDataGrid.ItemsSource = allComputers; // Then set new data
                         ComputerCountLabel.Text = $"Total Computers: {allComputers.Count} ({activeHostsCount} online)";
+                        
+                        // Update the new status labels
+                        var offlineHostsCount = allComputers.Count - activeHostsCount;
+                        OnlineCountLabel.Text = $"{activeHostsCount} Online";
+                        OfflineCountLabel.Text = $"{offlineHostsCount} Offline";
+                        
                         Console.WriteLine("LoadAllComputers: UI updated successfully");
                     }
                     catch (Exception ex)
@@ -907,18 +1066,6 @@ namespace BoincDashboard
             
             // If state is 2 (Ready to Run) but has active_task with active_task_state 1, it's actually "Running"
             if (baseState == "Ready to Run" && hasActiveTask && activeTaskState == "1")
-            {
-                return "Running";
-            }
-            
-            // If state is 2 (Ready to Run) but has active_task with active_task_state 0, it's "Suspended"
-            if (baseState == "Ready to Run" && hasActiveTask && activeTaskState == "0")
-            {
-                return "Suspended";
-            }
-            
-            // If state is "Computing" and has active_task, it's "Running"
-            if (baseState == "Computing" && hasActiveTask)
             {
                 return "Running";
             }
