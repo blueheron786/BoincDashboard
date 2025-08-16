@@ -12,124 +12,12 @@ using System.Security.Cryptography;
 using Newtonsoft.Json;
 using System.Globalization;
 using System.Windows.Data;
+using BoincDashboard.Models;
+using BoincDashboard.Infrastructure;
+using BoincDashboard.Converters;
 
 namespace BoincDashboard
 {
-    public class LastContactConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is DateTime dateTime)
-            {
-                if (dateTime == DateTime.MinValue)
-                {
-                    return "Never";
-                }
-
-                var timeDiff = DateTime.Now - dateTime;
-                
-                if (timeDiff.TotalMinutes < 1)
-                {
-                    return "Just now";
-                }
-                else if (timeDiff.TotalMinutes < 60)
-                {
-                    return $"{(int)timeDiff.TotalMinutes}m ago";
-                }
-                else if (timeDiff.TotalHours < 24)
-                {
-                    return $"{(int)timeDiff.TotalHours}h ago";
-                }
-                else if (timeDiff.TotalDays < 7)
-                {
-                    return $"{(int)timeDiff.TotalDays}d ago";
-                }
-                else
-                {
-                    return dateTime.ToString("MMM dd");
-                }
-            }
-            return "Unknown";
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class BoincConnection : IDisposable
-    {
-        public TcpClient? TcpClient { get; set; }
-        public NetworkStream? Stream { get; set; }
-        public DateTime LastUsed { get; set; }
-        public bool IsConnected => TcpClient?.Connected == true && Stream?.CanRead == true && Stream?.CanWrite == true;
-
-        public void Dispose()
-        {
-            Stream?.Dispose();
-            TcpClient?.Dispose();
-        }
-    }
-
-    public class BoincHost
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public int Port { get; set; } = 31416;
-    }
-
-    public class ComputerStatus
-    {
-        public string HostName { get; set; } = string.Empty;
-        public DateTime LastSeen { get; set; }
-        public bool IsOnline { get; set; }
-    }
-
-    public class BoincTask
-    {
-        public string HostName { get; set; } = string.Empty;
-        public string ProjectName { get; set; } = string.Empty;
-        public string TaskName { get; set; } = string.Empty;
-        public string State { get; set; } = string.Empty;
-        public double ProgressPercent { get; set; }
-        public TimeSpan ElapsedTime { get; set; }
-        public TimeSpan RemainingTime { get; set; }
-        public DateTime Deadline { get; set; }
-        
-        // Formatted time properties that include days when > 24 hours
-        public string ElapsedTimeFormatted => FormatTimeSpan(ElapsedTime);
-        public string RemainingTimeFormatted => FormatTimeSpan(RemainingTime);
-        
-        private static string FormatTimeSpan(TimeSpan ts)
-        {
-            if (ts.TotalDays >= 1)
-            {
-                return $"{(int)ts.TotalDays}d {ts.Hours:00}:{ts.Minutes:00}:{ts.Seconds:00}";
-            }
-            return $"{ts.Hours:00}:{ts.Minutes:00}:{ts.Seconds:00}";
-        }
-        
-        // Computed property to show appropriate time info based on task state
-        public string TimeInfo => State == "Complete" 
-            ? $"Runtime: {ElapsedTimeFormatted}"
-            : RemainingTime.TotalSeconds > 0 
-                ? $"Remaining: {RemainingTimeFormatted}" 
-                : $"Elapsed: {ElapsedTimeFormatted}";
-    }
-
-    public class BoincComputer
-    {
-        public string HostName { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
-        public int ActiveTasks { get; set; }
-        public int TotalTasks { get; set; }
-        public string Platform { get; set; } = string.Empty;
-        public string BoincVersion { get; set; } = string.Empty;
-        public DateTime LastContact { get; set; }
-    }
-
     public partial class MainWindow : Window
     {
         private DispatcherTimer _refreshTimer = new();

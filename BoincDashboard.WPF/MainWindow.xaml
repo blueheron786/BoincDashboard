@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BoincDashboard"
+        xmlns:converters="clr-namespace:BoincDashboard.Converters"
         mc:Ignorable="d"
         Title="BOINC Task Dashboard" 
         Height="700" 
@@ -13,7 +14,7 @@
 
     <Window.Resources>
         <!-- Converters -->
-        <local:LastContactConverter x:Key="LastContactConverter"/>
+        <converters:LastContactConverter x:Key="LastContactConverter"/>
         
         <!-- Styles -->
         <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
