@@ -15,6 +15,8 @@ using System.Windows.Data;
 using BoincDashboard.Models;
 using BoincDashboard.Infrastructure;
 using BoincDashboard.Converters;
+using System.Windows.Forms; // For NotifyIcon
+using System.Drawing; // For Icon
 
 namespace BoincDashboard
 {
@@ -41,9 +43,14 @@ namespace BoincDashboard
         private DispatcherTimer _statusSaveTimer = new();
         private readonly string _statusFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BoincDashboard", "computer_status.json");
 
+        // System tray functionality
+        private NotifyIcon? _notifyIcon;
+        private bool _isExiting = false;
+
         public MainWindow()
         {
             InitializeComponent();
+            InitializeSystemTray();
             InitializeHosts();
             LoadComputerStatusHistory();
             SetupStatusSaveTimer();
@@ -53,12 +60,22 @@ namespace BoincDashboard
             // Load tasks after the window is fully loaded to avoid deadlock
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
+            this.StateChanged += MainWindow_StateChanged;
         }
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (!_isExiting)
+            {
+                e.Cancel = true;
+                Hide();
+                _notifyIcon?.ShowBalloonTip(2000, "BOINC Dashboard", "Application was minimized to tray. Right-click the tray icon to exit.", ToolTipIcon.Info);
+                return;
+            }
+            
             _statusSaveTimer?.Stop();
             SaveComputerStatusHistory();
+            _notifyIcon?.Dispose();
         }
 
         private void LoadComputerStatusHistory()
@@ -111,6 +128,68 @@ namespace BoincDashboard
             _statusSaveTimer.Tick += (sender, e) => SaveComputerStatusHistory();
             _statusSaveTimer.Start();
         }
+
+        #region System Tray Functionality
+
+        private void InitializeSystemTray()
+        {
+            _notifyIcon = new NotifyIcon();
+            
+            // Create icon from embedded resource or use default
+            try
+            {
+                // For now, use a simple default icon - you can replace this with a custom icon later
+                _notifyIcon.Icon = SystemIcons.Application;
+            }
+            catch
+            {
+                // Fallback to a simple system icon
+                _notifyIcon.Icon = SystemIcons.Information;
+            }
+            
+            _notifyIcon.Text = "BOINC Dashboard";
+            _notifyIcon.Visible = true;
+            
+            // Double-click to show window
+            _notifyIcon.DoubleClick += (sender, e) => ShowWindow();
+            
+            // Right-click context menu
+            var contextMenu = new ContextMenuStrip();
+            
+            var showMenuItem = new ToolStripMenuItem("Show", null, (sender, e) => ShowWindow());
+            var exitMenuItem = new ToolStripMenuItem("Exit", null, (sender, e) => ExitApplication());
+            
+            contextMenu.Items.Add(showMenuItem);
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add(exitMenuItem);
+            
+            _notifyIcon.ContextMenuStrip = contextMenu;
+        }
+
+        private void MainWindow_StateChanged(object? sender, EventArgs e)
+        {
+            if (WindowState == WindowState.Minimized)
+            {
+                Hide();
+                _notifyIcon!.ShowBalloonTip(2000, "BOINC Dashboard", "Application was minimized to tray", ToolTipIcon.Info);
+            }
+        }
+
+        private void ShowWindow()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+
+        private void ExitApplication()
+        {
+            _isExiting = true;
+            _notifyIcon?.Dispose();
+            System.Windows.Application.Current.Shutdown();
+        }
+
+        #endregion
 
         private void UpdateComputerStatus(string hostName, bool isOnline)
         {
@@ -237,7 +316,7 @@ namespace BoincDashboard
             catch (Exception ex)
             {
                 Console.WriteLine($"Error loading hosts from JSON: {ex.Message}");
-                MessageBox.Show($"Error loading hosts configuration: {ex.Message}", "Configuration Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show($"Error loading hosts configuration: {ex.Message}", "Configuration Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 _hosts = new List<BoincHost>();
             }
         }
@@ -391,7 +470,7 @@ namespace BoincDashboard
                 if (allTasks.Count == 0 && errorMessages.Count > 0)
                 {
                     // Show detailed errors if no tasks found
-                    MessageBox.Show(
+                    System.Windows.MessageBox.Show(
                         string.Join("\n", errorMessages),
                         "Connection Errors",
                         MessageBoxButton.OK,
@@ -975,7 +1054,7 @@ namespace BoincDashboard
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
             // TODO: Implement settings dialog
-            MessageBox.Show("Settings dialog not yet implemented.", "Settings", MessageBoxButton.OK, MessageBoxImage.Information);
+            System.Windows.MessageBox.Show("Settings dialog not yet implemented.", "Settings", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void AutoRefreshToggle_Click(object sender, RoutedEventArgs e)
