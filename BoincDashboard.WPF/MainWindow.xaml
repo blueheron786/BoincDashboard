@@ -10,7 +10,8 @@
         Height="700" 
         Width="1200"
         WindowStartupLocation="CenterScreen"
-        Background="#2D2D30">
+        Background="#2D2D30"
+        Icon="favicon.ico">
 
     <Window.Resources>
         <!-- Converters -->

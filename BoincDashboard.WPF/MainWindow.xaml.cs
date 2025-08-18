@@ -138,8 +138,17 @@ namespace BoincDashboard
             // Create icon from embedded resource or use default
             try
             {
-                // For now, use a simple default icon - you can replace this with a custom icon later
-                _notifyIcon.Icon = SystemIcons.Application;
+                // Try to load from output directory (this should work since we confirmed the file exists)
+                var iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "favicon.ico");
+                if (System.IO.File.Exists(iconPath))
+                {
+                    _notifyIcon.Icon = new System.Drawing.Icon(iconPath);
+                }
+                else
+                {
+                    // Fallback to application icon
+                    _notifyIcon.Icon = SystemIcons.Application;
+                }
             }
             catch
             {
