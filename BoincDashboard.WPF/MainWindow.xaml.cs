@@ -249,7 +249,7 @@ namespace BoincDashboard
         {
             if (HostFilterComboBox.SelectedItem != null)
             {
-                _selectedHost = HostFilterComboBox.SelectedItem.ToString();
+                _selectedHost = HostFilterComboBox.SelectedItem.ToString() ?? "All Hosts";
                 ApplyFilters();
             }
         }
@@ -258,8 +258,9 @@ namespace BoincDashboard
         {
             if (StatusFilterComboBox.SelectedItem != null)
             {
-                _selectedStatus = StatusFilterComboBox.SelectedItem.ToString();
+                _selectedStatus = StatusFilterComboBox.SelectedItem.ToString() ?? "All Status";
                 ApplyFilters();
+
             }
         }
 
@@ -337,6 +338,7 @@ namespace BoincDashboard
                 /////////////// takes around 0.5s to update
                 // For some slow machines, 1s is too fast.
                 // Keep it slow so we get consistent results.
+                // Will be auto-adjusted based on runtime
                 Interval = TimeSpan.FromSeconds(5),
             };
             _refreshTimer.Tick += async (s, e) => 
@@ -361,35 +363,29 @@ namespace BoincDashboard
             // Show loading indicator
             Dispatcher.Invoke(() =>
             {
-                LastUpdatedLabel.Text = "Connecting to hosts...";
+                LastUpdatedLabel.Text = "Connecting to all hosts...";
             });
 
             // Clean up stale connections before starting
             CleanupStaleConnections();
 
-            foreach (var host in _hosts)
+            // Create tasks for all hosts to run in parallel
+            var hostTasks = _hosts.Select(async host =>
             {
-                // Update loading indicator with current host
-                Dispatcher.Invoke(() =>
-                {
-                    LastUpdatedLabel.Text = $"Connecting to {host.Name}...";
-                });
-
                 try
                 {
-                    var hostTasks = await GetTasksFromHost(host);
-                    allTasks.AddRange(hostTasks);
+                    var tasks = await GetTasksFromHost(host);
+                    return new { Host = host, Tasks = tasks, Error = (string?)null };
                 }
                 catch (TimeoutException)
                 {
                     var errorMsg = $"[TIMEOUT] {host.Name} ({host.Address}) not accessible - connection timeout. Skipping retries.";
-                    errorMessages.Add(errorMsg);
                     Console.WriteLine(errorMsg);
+                    return new { Host = host, Tasks = new List<BoincTask>(), Error = (string?)errorMsg };
                 }
                 catch (Exception ex)
                 {
                     var errorMsg = $"Error connecting to {host.Name} ({host.Address}): {ex.Message}";
-                    errorMessages.Add(errorMsg);
                     
                     // Specific handling for other connection timeouts - don't retry
                     if (ex.Message.Contains("connection attempt failed") || 
@@ -403,8 +399,32 @@ namespace BoincDashboard
                         Console.WriteLine($"[ERROR] {errorMsg}");
                         Console.WriteLine($"Full exception: {ex}");
                     }
+                    return new { Host = host, Tasks = new List<BoincTask>(), Error = (string?)errorMsg };
+                }
+            }).ToArray();
+
+            // Wait for all hosts to respond
+            var results = await Task.WhenAll(hostTasks);
+
+            // Process results
+            foreach (var result in results)
+            {
+                if (result.Error != null)
+                {
+                    errorMessages.Add(result.Error);
+                }
+                else
+                {
+                    allTasks.AddRange(result.Tasks);
                 }
             }
+
+            stopwatch.Stop();
+            var elapsedMs = stopwatch.ElapsedMilliseconds;
+            Console.WriteLine($"Total refresh time: {elapsedMs} ms");
+
+            // Auto-adjust timer interval based on runtime
+            AdjustTimerInterval(elapsedMs);
 
             // Update UI on main thread
             Dispatcher.Invoke(() =>
@@ -458,7 +478,7 @@ namespace BoincDashboard
                 TotalTasksLabel.Text = $"Total Tasks: {totalTasksCount} ({runningTasksCount} running)";
                 ActiveHostsLabel.Text = $"Active Hosts: {activeHostsCount}/{_hosts.Count}";
                 
-                var statusText = $"Last Updated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+                var statusText = $"Last Updated: {DateTime.Now:yyyy-MM-dd HH:mm:ss} ({elapsedMs}ms)";
                 
                 // Update unavailable hosts in dedicated bottom label
                 if (errorMessages.Count > 0)
@@ -487,8 +507,6 @@ namespace BoincDashboard
                 }
                 LastUpdatedLabel.Text = statusText;
             });
-            stopwatch.Stop();
-            Console.WriteLine($"Total refresh time: {stopwatch.ElapsedMilliseconds} ms");
         }
 
         private void LoadAllComputers()
@@ -799,7 +817,7 @@ namespace BoincDashboard
                 client.SendTimeout = 5000;
 
                 // Create cancellation token for connection timeout
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(9));
                 
                 // Connect to host with timeout
                 if (host.Address.Contains(':'))
@@ -1052,6 +1070,29 @@ namespace BoincDashboard
         private DateTime UnixTimeStampToDateTime(double unixTimeStamp)
         {
             return DateTimeOffset.FromUnixTimeSeconds((long)unixTimeStamp).DateTime;
+        }
+
+        private void AdjustTimerInterval(long elapsedMs)
+        {
+            // Calculate optimal interval based on runtime
+            // Ensure timer interval is at least 2x the runtime to prevent overlap
+            // Minimum interval: 5 seconds, Maximum interval: 60 seconds
+            
+            var minIntervalMs = Math.Max(5000, elapsedMs * 2);
+            var maxIntervalMs = 60000;
+            var optimalIntervalMs = Math.Min(minIntervalMs, maxIntervalMs);
+            
+            var newInterval = TimeSpan.FromMilliseconds(optimalIntervalMs);
+            
+            // Only update if the change is significant (>= 1 second difference)
+            if (Math.Abs((newInterval - _refreshTimer.Interval).TotalMilliseconds) >= 1000)
+            {
+                _refreshTimer.Stop();
+                _refreshTimer.Interval = newInterval;
+                _refreshTimer.Start();
+                
+                Console.WriteLine($"Timer interval adjusted from {_refreshTimer.Interval.TotalSeconds:F1}s to {newInterval.TotalSeconds:F1}s (runtime: {elapsedMs}ms)");
+            }
         }
 
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
