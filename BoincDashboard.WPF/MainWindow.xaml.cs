@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -1077,10 +1077,10 @@ namespace BoincDashboard
         private void AdjustTimerInterval(long elapsedMs)
         {
             // Calculate optimal interval based on runtime
-            // Ensure timer interval is at least 2x the runtime to prevent overlap
+            var currentIntervalMs = _refreshTimer.Interval.TotalMilliseconds;
             // Minimum interval: 5 seconds, Maximum interval: 60 seconds
             
-            var minIntervalMs = Math.Max(5000, elapsedMs * 2);
+            var minIntervalMs = Math.Max(5000, currentIntervalMs + (elapsedMs > currentIntervalMs ? 1000 : 0));
             var maxIntervalMs = 60000;
             var optimalIntervalMs = Math.Min(minIntervalMs, maxIntervalMs);
             
@@ -1107,7 +1107,7 @@ namespace BoincDashboard
             
             Dispatcher.Invoke(() =>
             {
-                AutoRefreshToggle.Content = $"⏱️ Auto-Refresh (every {intervalSeconds}s)";
+                AutoRefreshToggle.Content = $"?? Auto-Refresh (every {intervalSeconds}s)";
             });
         }
 
