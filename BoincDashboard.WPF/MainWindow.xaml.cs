@@ -38,6 +38,9 @@ namespace BoincDashboard
         private string _selectedHost = "All Hosts";
         private string _selectedStatus = "All Status";
 
+        // Track successful connections (hosts that responded, even with 0 tasks)
+        private HashSet<string> _successfulConnections = new();
+
         // Computer status persistence
         private Dictionary<string, ComputerStatus> _computerStatusHistory = new();
         private DispatcherTimer _statusSaveTimer = new();
@@ -406,7 +409,8 @@ namespace BoincDashboard
             // Wait for all hosts to respond
             var results = await Task.WhenAll(hostTasks);
 
-            // Process results
+            // Process results and track successful connections
+            _successfulConnections.Clear();
             foreach (var result in results)
             {
                 if (result.Error != null)
@@ -415,6 +419,8 @@ namespace BoincDashboard
                 }
                 else
                 {
+                    // Host connected successfully (even if it has 0 tasks)
+                    _successfulConnections.Add(result.Host.Name);
                     allTasks.AddRange(result.Tasks);
                 }
             }
@@ -471,7 +477,7 @@ namespace BoincDashboard
                 }
                 
                 // Update counters
-                var activeHostsCount = _hosts.Count - errorMessages.Count;
+                var activeHostsCount = _successfulConnections.Count;
                 var totalTasksCount = allTasks.Count;
                 var runningTasksCount = allTasks.Count(t => t.State == "Running");
                 
@@ -516,36 +522,32 @@ namespace BoincDashboard
                 Console.WriteLine("LoadAllComputers: Creating computer list from existing task data...");
                 var allComputers = new List<BoincComputer>();
 
-                // Get distinct computers from tasks
-                var distinctHosts = _allTasks.GroupBy(t => t.HostName).ToList();
-                
-                // Add computers that have tasks (online)
-                foreach (var hostGroup in distinctHosts)
+                // Add all successfully connected hosts (even those with 0 tasks)
+                foreach (var hostName in _successfulConnections)
                 {
-                    var hostTasks = hostGroup.ToList();
+                    var hostTasks = _allTasks.Where(t => t.HostName == hostName).ToList();
                     var computer = new BoincComputer
                     {
-                        HostName = hostGroup.Key,
-                        Status = "Online",
+                        HostName = hostName,
+                        Status = "Connected", // Successfully connected to BOINC
                         ActiveTasks = hostTasks.Count(t => t.State == "Running"),
                         TotalTasks = hostTasks.Count,
-                        Platform = "Active Host", // We know it's active if it has tasks
+                        Platform = "Active Host", // We know it's active if we connected successfully
                         BoincVersion = "Connected",
                         LastContact = DateTime.Now
                     };
                     allComputers.Add(computer);
                     
                     // Update status history
-                    UpdateComputerStatus(hostGroup.Key, true);
+                    UpdateComputerStatus(hostName, true);
                     
-                    Console.WriteLine($"Added computer from tasks: {computer.HostName} ({computer.ActiveTasks}/{computer.TotalTasks} tasks)");
+                    Console.WriteLine($"Added computer from successful connection: {computer.HostName} ({computer.ActiveTasks}/{computer.TotalTasks} tasks)");
                 }
 
-                // Add configured hosts that don't have any tasks (offline hosts)
-                var hostsWithTasks = distinctHosts.Select(g => g.Key).ToHashSet();
+                // Add configured hosts that we couldn't connect to (offline hosts)
                 foreach (var configuredHost in _hosts)
                 {
-                    if (!hostsWithTasks.Contains(configuredHost.Name))
+                    if (!_successfulConnections.Contains(configuredHost.Name))
                     {
                         // Get last seen time from history
                         var lastSeen = DateTime.MinValue;
@@ -573,7 +575,7 @@ namespace BoincDashboard
                     }
                 }
 
-                var activeHostsCount = allComputers.Count(c => c.Status == "Online");
+                var activeHostsCount = _successfulConnections.Count;
 
                 // Sort computers with online first, then offline, then by hostname
                 allComputers = allComputers
@@ -1093,6 +1095,20 @@ namespace BoincDashboard
                 
                 Console.WriteLine($"Timer interval adjusted from {_refreshTimer.Interval.TotalSeconds:F1}s to {newInterval.TotalSeconds:F1}s (runtime: {elapsedMs}ms)");
             }
+            
+            // Always update the auto-refresh button text (even if interval didn't change)
+            UpdateAutoRefreshButtonText();
+        }
+
+        private void UpdateAutoRefreshButtonText()
+        {
+            // Round up the interval to the nearest second (e.g., 5.01 -> 6 seconds)
+            var intervalSeconds = Math.Ceiling(_refreshTimer.Interval.TotalSeconds);
+            
+            Dispatcher.Invoke(() =>
+            {
+                AutoRefreshToggle.Content = $"⏱️ Auto-Refresh (every {intervalSeconds}s)";
+            });
         }
 
         private async void RefreshButton_Click(object sender, RoutedEventArgs e)
