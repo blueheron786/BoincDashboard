@@ -1,5 +1,4 @@
 using System.IO;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,8 +9,6 @@ using System.Windows.Threading;
 using System.Xml.Linq;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
-using System.Globalization;
-using System.Windows.Data;
 using BoincDashboard.Models;
 using BoincDashboard.Infrastructure;
 using BoincDashboard.Converters;
@@ -1107,7 +1104,7 @@ namespace BoincDashboard
             
             Dispatcher.Invoke(() =>
             {
-                AutoRefreshToggle.Content = $"?? Auto-Refresh (every {intervalSeconds}s)";
+                AutoRefreshToggle.Content = $"⏱️ Auto-Refresh (every {intervalSeconds}s)";
             });
         }
 
